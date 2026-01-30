@@ -7,43 +7,43 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const path = require("path");
-const multer = require('multer');
+const upload = require("../config/multerconfig");
+
+
 
 //It connects Express with EJS so you can render dynamic web pages. 
 app.set("view engine", "ejs");
-
+app.set("views", path.join(__dirname, "views"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
 app.use(cookieParser());
-
-
-
-const storage = multer.diskStorage({
-    destination: function(req, file, cb){
-        cb(null, './public/images/uploads')
-    },
-    filename: function (req, file, cb){
-        crypto.randomBytes(12, function (err, bytes) {
-            const fn = bytes.toString("hex") + path.extname(file.originalname);
-
-            cb(null, fn)
-        })
-    }
-})
-
-const upload = multer({ storage : storage })
-
 
 app.get('/', (req, res) => {
     res.render("index");
 });
 
-app.get('/test', (req, res) => {
-    res.render("test");
+app.get('/profile/upload', (req, res) => {
+    res.render("profileupload");
 });
 
-app.post('/upload', upload.single("image"), (req, res) => {
-    console.log(req.file);
+app.post('/upload', isLoggedIn, upload.single("image"), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).send("No file uploaded");
+    }
+
+    try {
+        let user = await userModel.findOneAndUpdate(
+            { email: req.user.email },
+            { profilepic: req.file.filename },
+            { new: true }
+        );
+        console.log('File uploaded:', req.file);
+        res.redirect("/profile");
+    } catch (error) {
+        console.error('Error updating profile picture:', error);
+        res.status(500).send("Error updating profile picture");
+    }
 });
 
 app.get('/login', (req, res) => {
@@ -154,4 +154,6 @@ function isLoggedIn(req, res, next) {
     }
 }
 
-app.listen(3000);
+app.listen(3000, () => {
+    console.log("Server is running on port 3000");
+});
